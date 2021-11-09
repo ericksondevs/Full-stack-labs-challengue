@@ -9,6 +9,7 @@ using Shyjus.BrowserDetection;
 using UnitOfWork.Configuration;
 using HeyUrl.Helpers;
 using System.Linq;
+using UnitOfWork.Services;
 
 namespace Entities.Controllers
 {
@@ -16,96 +17,99 @@ namespace Entities.Controllers
     [Route("/")]
     public class UrlsController : Controller
     {
-        private readonly ILogger<UrlsController> _logger;
-        private static readonly Random getrandom = new Random();
-
         private readonly IBrowserDetector browserDetector;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly UrlService _UrlService;
 
         public UrlsController(IUnitOfWork unitOfWork, IBrowserDetector browserDetector)
         {
             this.browserDetector = browserDetector;
-            _unitOfWork = unitOfWork;
+            _UrlService = new UrlService(unitOfWork);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([FromForm] Url Url)
         {
-            //Check if url is valid
-            if (Uri.TryCreate(Url.LongUrl, UriKind.Absolute, out Uri validatedUri))
+            if (ModelState.IsValid)
             {
-                //CheckIF Url Exist in DataBase
+                var result = await _UrlService.CreateShortUrlAsync(Url);
 
-                // Check if long URL already exists in the database
-                Url existingURL = await _unitOfWork.Url.FindOne(u => u.ShortUrl.ToLower() == Url.LongUrl.ToLower());
-
-                if (existingURL == null)
+                if (result.Successful)
                 {
-                    TryValidateModel(Url);
-
-                    if (ModelState.IsValid)
-                    {
-                        await _unitOfWork.Url.Insert(Url);
-                        Url.ShortUrl = UrlShortener.Encode(Url.Id);
-                        Url.Date = DateTime.Now;
-
-                        await _unitOfWork.CompleteAsync();
-                        return RedirectToAction(actionName: nameof(Show), routeValues: new { url = Url.ShortUrl });
-                    }
-
-                    return View(Url);
+                    return RedirectToAction(actionName: nameof(Show), routeValues: new { url = result.ShortUrl });
                 }
                 else
                 {
-                    return RedirectToAction(actionName: nameof(Show), routeValues: new { id = existingURL.ShortUrl });
+                    TempData["Error"] = result.Message;
+                    return RedirectToAction("Index");
                 }
             }
-            else
-            {
-                TempData["Error"] = "Invalid Url!";
-                return RedirectToAction("Index");
-            }
+            return View(Url);
         }
+
+        //Contains the form and a list of the last 10 URL created with their click count
         public async Task<IActionResult> Index()
         {
-            var urlList = await _unitOfWork.Url.All();
+            var urlList = await _UrlService.GetLast10UrlsAsync();
             var model = new HomeViewModel();
-            var Urls = new List<Url>();
-            model.Urls = Urls;
-
-            if (urlList.Count() > 0)
-            {
-                foreach (var item in urlList)
-                {
-                    Urls.Add(item);
-                }
-            }
+            model.Urls = urlList;
 
             model.NewUrl = new();
             return View(model);
         }
 
         [Route("/{url}")]
+        //Redirects from a short URL to the original URL and should also track the click event
         public async Task<IActionResult> Visit(string url)
         {
-            //Check if exist
-            var shortUrl = await _unitOfWork.Url.FindOne(u => u.ShortUrl.ToLower() == url.ToLower());
+            var result = await _UrlService.VisitUrl(url, this.browserDetector);
 
-            if (shortUrl != null)
+            if (result.Successful)
             {
-                shortUrl.Count = shortUrl.Count + 1;
+                return Redirect(result.Url.LongUrl);
+            }
+            else
+            {
+                return View("~/Views/Shared/Error.cshtml", new ErrorViewModel() { RequestId = result.Message });
 
-                UrlStatistics stats = new UrlStatistics();
-                stats.UserAgent = this.browserDetector.Browser.OS;
-                stats.Browser = this.browserDetector.Browser.Name;
-                stats.Date = DateTime.Now;
-                stats.Url = shortUrl;
+            }
+        }
 
-                await _unitOfWork.Statisticts.Add(stats);
-                await _unitOfWork.CompleteAsync();
+        [Route("urls/{url}")]
+        //Shows the metrics associated to the short URL
+        public async Task<IActionResult> Show(string url)
+        {
+            var _oUrl = await _UrlService.GetUrlsAsync(url);
 
-                return new OkObjectResult($"{url}, {this.browserDetector.Browser.OS}, {this.browserDetector.Browser.Name}");
+            if (_oUrl.Successful)
+            {
+                var statisticts = await _UrlService.GetUrlStatistictsAsync(_oUrl);
+
+                if (statisticts.Count() > 0)
+                {
+                    var dailyClicks = statisticts.GroupBy(x => new { Day = x.Date.ToShortDateString() }).ToDictionary(x => x.Key.Day, x => x.Count());
+                    var browseClicks = statisticts.GroupBy(x => x.Browser).ToDictionary(x => x.Key.ToString(), x => x.Count());
+                    var platformClicks = statisticts.GroupBy(x => x.UserAgent).ToDictionary(x => x.Key.ToString(), x => x.Count());
+
+                    return View(new ShowViewModel()
+                    {
+                        Url = _oUrl,
+                        DailyClicks = dailyClicks,
+                        BrowseClicks = browseClicks,
+                        PlatformClicks = platformClicks
+                    });
+                }
+                else
+                {
+                    return View(new ShowViewModel()
+                    {
+                        Url = _oUrl,
+                        DailyClicks = new Dictionary<string, int> { { "0", 0 } },
+                        BrowseClicks = new Dictionary<string, int> { },
+                        PlatformClicks = new Dictionary<string, int> { }
+                    });
+
+                }
             }
             else
             {
@@ -113,37 +117,12 @@ namespace Entities.Controllers
             }
         }
 
-        [Route("urls/{url}")]
-        public async Task<IActionResult> Show(string url)
+        // GET: api/<UrlController>
+        [HttpGet("/api/last10")]
+        public async Task<JsonResult> Get()
         {
-            var Url = await _unitOfWork.Url.FindOne(u => u.ShortUrl.ToLower() == url.ToLower());
-            var statisticts = await _unitOfWork.Statisticts.Find(u => u.Url.ShortUrl.ToLower() == url.ToLower());
-
-            if (statisticts.Count() > 0)
-            {
-                var dailyClicks = statisticts.GroupBy(x => new { Day = x.Date.ToShortDateString() }).ToDictionary(x => x.Key.Day, x => x.Count());
-                var browseClicks = statisticts.GroupBy(x => x.Browser).ToDictionary(x => x.Key.ToString(), x => x.Count());
-                var platformClicks = statisticts.GroupBy(x => x.UserAgent).ToDictionary(x => x.Key.ToString(), x => x.Count());
-
-                return View(new ShowViewModel()
-                {
-                    Url = new Url { ShortUrl = url, Count = Url.Count },
-
-                    DailyClicks = dailyClicks,
-                    BrowseClicks = browseClicks,
-                    PlatformClicks = platformClicks
-                });
-            }
-            else
-            {
-                return View(new ShowViewModel()
-                {
-                    Url = new Url { ShortUrl = url, Count = 0 },
-                    DailyClicks = new Dictionary<string, int> { { "0", 0 } },
-                    BrowseClicks = new Dictionary<string, int> { },
-                    PlatformClicks = new Dictionary<string, int> { }
-                });
-            }
+            var urlList = await _UrlService.GetLast10UrlsAsync();
+            return Json(urlList);
         }
     }
 }

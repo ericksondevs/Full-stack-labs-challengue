@@ -9,7 +9,15 @@ namespace DataAccessLayer.Data
         {
         }
 
-        public DbSet<Url> Urls { get; set; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // configures one-to-many relationship
+            modelBuilder.Entity<Url>()
+                .HasOne<UrlStatistics>(s => s.UrlStatistics)
+                .WithMany(g => g.Urls).HasForeignKey(s => s.UrlStatId);
+        }
+
+    public DbSet<Url> Urls { get; set; }
         public DbSet<UrlStatistics> UrlStatistics { get; set; }
     }
 }

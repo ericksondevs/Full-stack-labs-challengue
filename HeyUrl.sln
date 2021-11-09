@@ -5,13 +5,13 @@ VisualStudioVersion = 16.0.31729.503
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HeyUrl", "HeyUrl\HeyUrl.csproj", "{E343671C-8069-426D-9356-383A9183CA01}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeyUrlTests", "HeyUrlTests\HeyUrlTests.csproj", "{D270F22A-E13B-4145-BF2B-2636691B93D5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HeyUrlTests", "HeyUrlTests\HeyUrlTests.csproj", "{D270F22A-E13B-4145-BF2B-2636691B93D5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccessLayer", "Entities\DataAccessLayer.csproj", "{3625C6A2-97A5-40B3-B005-8ACB99BD4AFA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataAccessLayer", "Entities\DataAccessLayer.csproj", "{3625C6A2-97A5-40B3-B005-8ACB99BD4AFA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitOfWork", "UnitOfWork\UnitOfWork.csproj", "{AC79A727-83A5-44E4-85E4-7705747BA776}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnitOfWork", "UnitOfWork\UnitOfWork.csproj", "{AC79A727-83A5-44E4-85E4-7705747BA776}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBaseMigration", "DataBaseMigration\DataBaseMigration.csproj", "{432A7B1A-7123-45F4-A7C9-DF4182A3F51A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBaseMigration", "DataBaseMigration\DataBaseMigration.csproj", "{432A7B1A-7123-45F4-A7C9-DF4182A3F51A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

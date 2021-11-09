@@ -43,7 +43,9 @@ namespace DataAccessLayer.Repositories
 
         public virtual async Task<bool> Delete(int id)
         {
-            throw new NotImplementedException();
+            var entity = await dbSet.FindAsync(id);
+            dbSet.Remove(entity);
+            return true;
         }
 
         public virtual Task<bool> Insert(T entity)
