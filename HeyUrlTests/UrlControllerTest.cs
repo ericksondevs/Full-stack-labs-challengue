@@ -95,6 +95,7 @@ namespace HeyUrlTests
             //Assert
             _unitOfWork.Verify(m => m.Url.Insert(It.IsAny<Url>()), Times.Once());
             _unitOfWork.Verify(m => m.CompleteAsync(), Times.Once());
+
             Assert.IsTrue(result.RouteValues.Where(x => x.Value.ToString() == url.ShortUrl).Any());
         }
 

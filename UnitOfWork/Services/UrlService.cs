@@ -46,7 +46,7 @@ namespace UnitOfWork.Services
 
         public async Task<UrlStatistics> VisitUrl(string url, IBrowserDetector browserDetector)
         {
-            var shortUrl = await _unitOfWork.Url.FindOne(u => u.ShortUrl.ToLower() == url.ToLower());
+            var shortUrl =  _unitOfWork.Url.All().Result.Where(u => u.ShortUrl.ToLower() == url.ToLower()).FirstOrDefault();
 
             //Check if exist
             if (shortUrl != null)
